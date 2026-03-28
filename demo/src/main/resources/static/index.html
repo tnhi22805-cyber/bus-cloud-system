@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hệ thống Giám sát Vòng tròn ảo Cloud</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f7f6; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        
+        /* Hiển thị vòng tròn các trạm */
+        .circle-container { display: flex; justify-content: center; gap: 20px; margin: 30px 0; }
+        .station { width: 120px; height: 120px; border: 3px solid #ddd; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: 0.3s; background: #fff; }
+        
+        /* Đánh dấu Server bắt đầu */
+        .start-server { border-color: #e74c3c !important; }
+        .start-server::after { content: "START SERVER"; position: absolute; top: -20px; font-size: 10px; color: #e74c3c; font-weight: bold; }
+
+        /* Trạm đang có xe */
+        .active { background-color: #2ecc71 !important; color: white; border-color: #27ae60; transform: scale(1.1); box-shadow: 0 0 20px #2ecc71; }
+        
+        .round-box { font-size: 24px; color: #2c3e50; background: #ecf0f1; padding: 15px; border-radius: 10px; display: inline-block; margin-bottom: 20px; border-left: 5px solid #3498db; }
+        #log { font-weight: bold; color: #16a085; height: 30px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GIÁM SÁT TRẠNG THÁI VÒNG TRÒN ẢO</h1>
+        
+        <!-- Hiển thị số vòng rõ ràng -->
+        <div class="round-box" id="round-info">
+            Đang tải dữ liệu...
+        </div>
+
+        <div class="circle-container" id="stations-list">
+            <!-- 5 Trạm sẽ hiện ở đây -->
+        </div>
+
+        <div id="log"></div>
+        <br>
+        <button onclick="checkIn()" style="padding: 15px 30px; font-size: 18px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 5px;">
+            ĐÓN XE TẠI TRẠM HIỆN TẠI
+        </button>
+    </div>
+
+    <script>
+        async function refresh() {
+            try {
+                const resStatus = await fetch('/api/bus/status');
+                const bus = await resStatus.json();
+                
+                // Hiển thị số vòng và số khách
+                document.getElementById('round-info').innerHTML = 
+                    `SỐ VÒNG ĐÃ DI CHUYỂN: <b style="font-size: 35px; color: #e74c3c;">${bus.totalRounds}</b> <br>` +
+                    `<small>Số khách hiện tại: ${bus.currentPassengers} | Xe đang ở: Trạm ${bus.currentStationId}</small>`;
+
+                const resStations = await fetch('/api/bus/stations');
+                const stations = await resStations.json();
+                
+                let html = '';
+                stations.forEach(s => {
+                    const isActive = (s.stationId === bus.currentStationId) ? 'active' : '';
+                    const isStart = (s.stationId === 1) ? 'start-server' : '';
+                    html += `
+                        <div class="station ${isActive} ${isStart}">
+                            <div style="font-size: 12px;">TRẠM</div>
+                            <div style="font-size: 25px; font-weight: bold;">${s.stationId}</div>
+                            <div style="font-size: 10px;">Khách vào: ${s.passengersIn}</div>
+                        </div>
+                    `;
+                });
+                document.getElementById('stations-list').innerHTML = html;
+            } catch (e) { console.log("Chưa kết nối được Backend"); }
+        }
+
+        async function checkIn() {
+            const res = await fetch('/api/bus/check-in', { method: 'POST' });
+            const msg = await res.text();
+            document.getElementById('log').innerText = msg;
+            refresh();
+        }
+
+        setInterval(refresh, 2000);
+        refresh();
+    </script>
+</body>
+</html>
